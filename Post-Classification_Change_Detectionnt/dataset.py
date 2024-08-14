@@ -15,18 +15,24 @@ class SN7BuildingsDataset(Dataset):
     def __getitem__(self, index):
         img_path, mask_path = self.image_label_pairs[index]
 
-        # Carica l'immagine con rasterio
+        # Load the image with rasterio
         with rasterio.open(img_path) as src:
-            image = src.read().astype(np.float32)
+            image = src.read([1, 2, 3]).astype(np.float32)  # Read the first 3 channels (RGB)
 
-        # Carica la maschera con rasterio
+        # Load the mask with rasterio
         with rasterio.open(mask_path) as src:
-            mask = src.read(1).astype(np.float32)  # Legge solo il primo canale
+            mask = src.read(1).astype(np.float32)  # Read only the first channel
 
-        # Assicurati che la maschera sia binaria (0 e 1)
+        # Ensure the mask is binary (0 and 1)
         mask[mask == 255.0] = 1.0
 
+        # If sizes do not match, raise an error
+        if image.shape[1:] != mask.shape:
+            raise ValueError(f"Image and mask sizes do not match: {image.shape[1:]} vs {mask.shape}")
+
         if self.transform is not None:
+            # Moveaxis to convert image from (C, H, W) to (H, W, C) before passing to albumentations
+            image = np.moveaxis(image, 0, -1)
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations["image"]
             mask = augmentations["mask"]

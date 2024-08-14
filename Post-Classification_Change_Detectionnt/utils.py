@@ -1,6 +1,9 @@
 import random
 import torch
 import torchvision
+import os
+import rasterio
+from rasterio.transform import from_origin
 import numpy as np
 from dataset import SN7BuildingsDataset
 from torch.utils.data import DataLoader
@@ -69,7 +72,9 @@ def check_accuracy(loader, model, device='mps'):
             preds = (preds > 0.5).float()
             num_correct += (preds == y).sum()
             num_pixels += torch.numel(preds)
-            dice_score += (2 * (preds * y).sum()) / ((preds + y).sum() + 1e-8)
+            dice_score += (2 * (preds * y).sum()) / (
+                (preds + y).sum() + 1e-8
+            )
 
     print(
         f"Got {num_correct}/{num_pixels} with acc {num_correct/num_pixels*100:.2f}"
@@ -77,8 +82,47 @@ def check_accuracy(loader, model, device='mps'):
     print(f"Dice score: {dice_score/len(loader)}")
     model.train()
 
+#def save_predictions_as_imgs(loader, model, folder='/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/provaraster', device='cpu'):
+#    # Ensure the folder exists, if not, create it
+#    if not os.path.exists(folder):
+#        os.makedirs(folder)
+#    
+#    model.eval()
+#    for idx, (x, y) in enumerate(loader):
+#        x = x.to(device=device)
+#        with torch.no_grad():
+#            preds = torch.sigmoid(model(x))
+#            preds = (preds > 0.5).float()
+#        
+#        # Resize predictions to 1024x1024
+#        preds = torchvision.transforms.functional.resize(preds, [1024, 1024])
+#
+#        # Convert the predictions tensor to numpy array
+#        preds_np = preds.squeeze().cpu().numpy()
+#
+#        # Define the transform (identity transform here, you can adjust based on your geospatial data)
+#        transform = from_origin(0, 0, 1, 1)  # This is a placeholder, adjust as needed for your data
+#
+#        # Save the prediction as a TIFF file
+#        tiff_path = os.path.join(folder, f"pred_{idx}.tif")
+#        with rasterio.open(
+#            tiff_path,
+#            'w',
+#            driver='GTiff',
+#            height=preds_np.shape[0],
+#            width=preds_np.shape[1],
+#            count=1,  # Number of bands
+#            dtype=preds_np.dtype,
+#            crs='+proj=latlong',  # You can specify your CRS here if needed
+#            transform=transform
+#        ) as dst:
+#            dst.write(preds_np, 1)
+#    model.train()
+        
+        
+
 def save_predictions_as_imgs(
-        loader, model, folder="saved_images/", device='mps'
+        loader, model, folder='/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/provaraster', device='mps'
 ):
     model.eval()
     for idx, (x, y) in enumerate(loader):
