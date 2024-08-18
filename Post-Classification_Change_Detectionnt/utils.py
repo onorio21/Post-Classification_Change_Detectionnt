@@ -122,17 +122,24 @@ def check_accuracy(loader, model, device='mps'):
         
 
 def save_predictions_as_imgs(
-        loader, model, folder='/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/provaraster', device='mps'
+        loader, model, folder='/Users/onorio21/Desktop/preds', device='mps'
 ):
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
+        y = y.to(device=device)  # Ensure y is also on the same device
+
         with torch.no_grad():
             preds = torch.sigmoid(model(x))
             preds = (preds > 0.5).float()
-        torchvision.utils.save_image(
-            preds, f"{folder}/pred_{idx}.png"
-        )
-        torchvision.utils.save_image(y.unsqueeze(1), f"{folder}{idx}.png")
+
+        # Iterate over the batch and save each prediction individually
+        for i in range(preds.shape[0]):
+            torchvision.utils.save_image(
+                preds[i], f"{folder}/pred_{idx}_{i}.png"
+            )
+            torchvision.utils.save_image(
+                y[i].unsqueeze(0), f"{folder}/{idx}_{i}.png"
+            )
 
     model.train()

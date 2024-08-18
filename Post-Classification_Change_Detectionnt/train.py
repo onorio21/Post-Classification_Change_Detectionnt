@@ -18,17 +18,18 @@ from utils import (
     save_checkpoint,
     get_loaders,
     check_accuracy,
+    save_predictions_as_imgs,
     set_seed,
 )
 
 # Hyperparameters
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 1e-4
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 4
-NUM_EPOCHS = 10
+NUM_EPOCHS = 3
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 512  # 1024 originally
-IMAGE_WIDTH = 512  # 1024 originally
+IMAGE_HEIGHT = 1024  # 1024 originally
+IMAGE_WIDTH = 1024  # 1024 originally
 PIN_MEMORY = True
 LOAD_MODEL = False 
 TRAIN_IMG_DIR = ""
@@ -162,7 +163,7 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn, train_losses)
 
         # Validation step
-        val_loss, val_precision, val_recall, val_f1, val_accuracy = evaluate(val_loader, model, loss_fn)
+        val_precision, val_recall, val_f1, val_accuracy, val_loss = evaluate(val_loader, model, loss_fn)
         val_metrics.append([val_precision, val_recall, val_f1, val_accuracy])
         val_loss = train_losses[-1]  # Using training loss for simplicity, you may want to calculate actual validation loss
         val_losses.append(val_loss)
@@ -180,9 +181,9 @@ def main():
             save_checkpoint(checkpoint, filename=f"best_model.pth.tar")
 
         # Optional: Save predictions as images
-        # save_predictions_as_imgs(
-        #     val_loader, model, folder='/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/provaraster', device=DEVICE
-        # )
+        save_predictions_as_imgs(
+            val_loader, model, folder='/Users/onorio21/Desktop/preds', device=DEVICE
+        )
 
     # Plot and save metrics
     plot_and_save_metrics(train_losses, val_losses, val_metrics, output_dir="/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/metrics")
