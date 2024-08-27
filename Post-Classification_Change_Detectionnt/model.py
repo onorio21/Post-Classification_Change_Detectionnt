@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torchvision.transforms.functional as TF
+from torchvision.transforms import functional as TF
+from torchvision.transforms import InterpolationMode
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -58,7 +59,7 @@ class UNET(nn.Module):
              skip_connection = skip_connections[idx//2]
 
              if x.shape != skip_connection.shape:
-                  x = TF.resize(x, size=skip_connection.shape[2:])
+                  x = TF.resize(x, size=skip_connection.shape[2:], interpolation=InterpolationMode.NEAREST)
 
              concat_skip = torch.cat((skip_connection, x), dim=1)
              x = self.ups[idx + 1](concat_skip)

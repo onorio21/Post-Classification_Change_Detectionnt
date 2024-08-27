@@ -23,10 +23,10 @@ from utils import (
 )
 
 # Hyperparameters
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-5
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 4
-NUM_EPOCHS = 3
+NUM_EPOCHS = 30
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 1024  # 1024 originally
 IMAGE_WIDTH = 1024  # 1024 originally
@@ -37,6 +37,14 @@ TRAIN_LABEL_DIR = ""
 VAL_IMG_DIR = ""
 VAL_LABEL_DIR = ""
 SEED = 42
+
+# Assuming these values are precomputed or calculated beforehand
+num_positives = 68454710  # Example value, replace with actual count
+num_negatives = 964053738  # Example value, replace with actual count
+
+# Calculate pos_weight
+pos_weight = torch.tensor([num_negatives / num_positives], dtype=torch.float32).to(DEVICE)
+scaled_pos_weight = pos_weight * 0.2  # Example scaling, you can adjust this
 
 set_seed(SEED)
 
@@ -124,6 +132,17 @@ def main():
     train_transform = A.Compose(
         [
             A.Resize(height=512, width=512),
+            A.HorizontalFlip(p=0.5),  # Flip the image horizontally with a 50% probability
+            A.VerticalFlip(p=0.5),  # Flip the image vertically with a 50% probability
+            A.RandomRotate90(p=0.5),  # Randomly rotate the image by 90 degrees
+            #A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=45, p=0.5),  # Random shifts, scaling, and rotation
+            #A.RandomBrightnessContrast(p=0.2),  # Randomly adjust brightness and contrast
+            #A.HueSaturationValue(p=0.3),  # Adjust hue, saturation, and value
+            #A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.3),  # Shift the RGB channels
+            #A.ElasticTransform(p=0.2),  # Apply elastic deformation
+            #A.Perspective(p=0.2),  # Apply perspective transformation
+            #A.GridDistortion(p=0.2),  # Apply grid distortion
+            #A.GaussianBlur(p=0.2),  # Apply Gaussian blur
             A.Normalize(mean=[0.0, 0.0, 0.0], std=[1.0, 1.0, 1.0], max_pixel_value=255.0),
             ToTensorV2(),
         ],
@@ -140,7 +159,7 @@ def main():
     )
 
     model = UNET(in_channels=3, out_channels=1).to(DEVICE)
-    loss_fn = nn.BCEWithLogitsLoss()
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=scaled_pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
@@ -158,6 +177,9 @@ def main():
     val_losses = []
     val_metrics = []
 
+    if LOAD_MODEL:
+        load_checkpoint(torch.load("best_model.pth.tar"), model)
+
     for epoch in range(NUM_EPOCHS):
         print(f"Epoch {epoch + 1}/{NUM_EPOCHS}")
         train_fn(train_loader, model, optimizer, loss_fn, train_losses)
@@ -165,7 +187,6 @@ def main():
         # Validation step
         val_precision, val_recall, val_f1, val_accuracy, val_loss = evaluate(val_loader, model, loss_fn)
         val_metrics.append([val_precision, val_recall, val_f1, val_accuracy])
-        val_loss = train_losses[-1]  # Using training loss for simplicity, you may want to calculate actual validation loss
         val_losses.append(val_loss)
 
         print(f"Validation Precision: {val_precision:.4f}, Recall: {val_recall:.4f}, F1-Score: {val_f1:.4f}, Accuracy: {val_accuracy:.4f}")
@@ -181,9 +202,9 @@ def main():
             save_checkpoint(checkpoint, filename=f"best_model.pth.tar")
 
         # Optional: Save predictions as images
-        save_predictions_as_imgs(
-            val_loader, model, folder='/Users/onorio21/Desktop/preds', device=DEVICE
-        )
+            save_predictions_as_imgs(
+                val_loader, model, folder='/Users/onorio21/Desktop/preds', device=DEVICE
+            )
 
     # Plot and save metrics
     plot_and_save_metrics(train_losses, val_losses, val_metrics, output_dir="/Users/onorio21/Desktop/Università/Laboratorio AI/Post-Classification_Change_Detectionnt/metrics")
